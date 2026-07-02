@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>珠算式・暗算修練場 極 | Soroban Mental Math Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans JP & Noto Serif JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Noto+Serif+JP:wght@600;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .serif-title {
+            font-family: 'Noto Serif JP', serif;
+        }
+        /* そろばんの珠の伝統的な形状 */
+        .soroban-bead {
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        /* ボタン押下時の心地よい凹み効果 */
+        .key-active {
+            transform: scale(0.94);
+            background-color: #d97706 !important; /* amber-600 */
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+        /* スクリューバー非表示 */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 解説エリア用の極細スクロールバー */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.2);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(217, 119, 6, 0.25);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(217, 119, 6, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen h-[100dvh] flex flex-col justify-between overflow-hidden">
+
+    <!-- ヘッダー (V2.1 安定版) -->
+    <header class="bg-slate-900/90 border-b border-amber-900/40 backdrop-blur px-4 py-2 flex-none z-50 shadow-md">
+        <div class="max-w-xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-gradient-to-br from-amber-500/30 to-amber-600/10 p-1.5 rounded-lg border border-amber-500/40">
+                    <i class="fa-solid fa-graduation-cap text-amber-500 text-base"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-extrabold tracking-widest text-amber-500 serif-title">珠算式・暗算修練場 <span class="text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded ml-1 font-mono">極</span></h1>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- 音声トグル -->
+                <button id="sound-toggle" class="bg-slate-800 hover:bg-slate-700 text-slate-300 w-9 h-9 rounded-full border border-slate-700 transition flex items-center justify-center shadow-sm" title="音声を切り替え">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-amber-500 text-sm"></i>
+                </button>
+                <div class="text-xs bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700 text-slate-300 font-medium">
+                    最高: <span id="high-score-display" class="text-amber-500 font-bold">0</span>問
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow flex items-center justify-center p-3 overflow-hidden">
+        <div class="w-full max-w-md h-full flex flex-col justify-center">
+            
+            <div class="bg-slate-900/50 rounded-2xl border border-slate-850 p-4 backdrop-blur-lg shadow-2xl flex flex-col justify-between h-full max-h-[640px] overflow-hidden">
+                
+                <!-- ==================== SETUP SCREEN (設定画面) ==================== -->
+                <div id="screen-setup" class="flex flex-col justify-between h-full space-y-4 overflow-y-auto scrollbar-hide py-2">
+                    <div class="text-center space-y-1">
+                        <h2 class="text-2xl font-bold text-amber-400 serif-title tracking-wider">暗算修練の設定</h2>
+                        <p class="text-sm text-slate-400">桁数と条件を選択して開始します</p>
+                    </div>
+
+                    <!-- 桁数設定 -->
+                    <div class="space-y-3.5">
+                        <!-- かけられる数 -->
+                        <div class="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80 shadow-inner">
+                            <label class="text-sm font-bold text-amber-500/90 block mb-2">
+                                <i class="fa-solid fa-arrow-right-to-bracket mr-1.5 text-xs"></i>かけられる数（被乗数）の桁数
+                            </label>
+                            <div class="grid grid-cols-5 gap-1.5" id="setup-multiplicand">
+                                <button data-val="1" class="digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition">1桁</button>
+                                <button data-val="2" class="digit-btn bg-amber-600 text-white py-2 rounded-lg text-sm font-extrabold border border-amber-500 transition ring-2 ring-amber-500/30">2桁</button>
+                                <button data-val="3" class="digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition">3桁</button>
+                                <button data-val="4" class="digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition">4桁</button>
+                                <button data-val="5" class="digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition">5桁</button>
+                            </div>
+                        </div>
+
+                        <!-- かける数 -->
+                        <div class="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80 shadow-inner">
+                            <label class="text-sm font-bold text-amber-500/90 block mb-2">
+                                <i class="fa-solid fa-times mr-1.5 text-xs"></i>かける数（乗数）の桁数
+                            </label>
+                            <div class="grid grid-cols-5 gap-1.5" id="setup-multiplier">
+                                <button data-val="1" class="digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition">1桁</button>
+                                <button data-val="2" class="digit-btn bg-amber-600 text-white py-2 rounded-lg text-sm font-extrabold border border-amber-500 transition ring-2 ring-amber-500/30">2桁</button>
+                                <button data-val="3" class="digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition">3桁</button>
+                                <button data-val="4" class="digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition">4桁</button>
+                                <button data-val="5" class="digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition">5桁</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 出題設定 (デフォルト：制限時間なし) -->
+                    <div class="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80 grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 block mb-1.5">出題問題数</label>
+                            <select id="setup-questions-count" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 px-3 text-sm font-semibold text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                                <option value="5">5 問</option>
+                                <option value="10" selected>10 問</option>
+                                <option value="20">20 問</option>
+                                <option value="999">サバイバル</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 block mb-1.5">制限時間 (1問)</label>
+                            <select id="setup-timer-limit" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 px-3 text-sm font-semibold text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                                <option value="0" selected>制限なし</option>
+                                <option value="15">15 秒</option>
+                                <option value="30">30 秒</option>
+                                <option value="60">60 秒</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 開始ボタン -->
+                    <button id="btn-start" class="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-extrabold py-3.5 rounded-xl transition shadow-lg text-lg flex items-center justify-center gap-2 tracking-widest mt-2">
+                        <i class="fa-solid fa-play"></i> 修練を開始する
+                    </button>
+                </div>
+
+                <!-- ==================== GAMEPLAY SCREEN (ゲーム本番画面) ==================== -->
+                <div id="screen-game" class="hidden flex-col justify-between h-full space-y-3">
+                    <!-- ステータスバー -->
+                    <div class="flex justify-between items-center bg-slate-950/40 px-3 py-1.5 rounded-lg border border-slate-800/60 text-xs sm:text-sm flex-none">
+                        <div class="text-slate-400 flex items-center gap-2">
+                            <span>進捗: <span id="game-progress" class="text-amber-500 font-extrabold">1 / 10</span></span>
+                            <div id="game-lives-wrapper" class="hidden text-rose-500">
+                                <i class="fa-solid fa-heart"></i> × <span id="game-lives">3</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="text-slate-400 flex items-center gap-1">
+                                <i class="fa-regular fa-clock"></i> <span id="game-timer" class="font-mono text-amber-500 font-extrabold">制限なし</span>
+                            </div>
+                            <span class="text-slate-700">|</span>
+                            <!-- トップに戻るボタン -->
+                            <button class="btn-abort text-rose-400 hover:text-rose-300 transition flex items-center gap-1 font-extrabold py-0.5 px-1.5 rounded hover:bg-slate-800/60 text-xs sm:text-sm" title="トップメニューに戻る">
+                                <i class="fa-solid fa-house"></i> トップ
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 問題表示エリア (3桁×3桁〜5桁×5桁までは完全に同じフォントサイズに固定調整) -->
+                    <div class="bg-slate-950/80 border border-slate-850 rounded-xl py-6 px-3 text-center relative shadow-inner flex flex-col justify-center items-center flex-grow min-h-[150px] max-h-[200px]">
+                        <!-- JSでフォントサイズを直接制御し、はみ出しを防ぎつつ3桁〜5桁の統一感を実現 -->
+                        <div class="font-black tracking-widest serif-title text-slate-100 whitespace-nowrap overflow-x-hidden overflow-y-hidden w-full max-w-full px-2 py-1 flex justify-center items-center h-24" id="game-problem" style="font-size: 2.2rem;">
+                            2,345 × 6,789
+                        </div>
+                        
+                        <!-- 入力値表示 (高さを完全に固定してテンキーの位置ズレを防ぐ) -->
+                        <div class="w-full max-w-[240px] mt-2 flex-none">
+                            <div class="bg-slate-900 border border-slate-750 rounded-lg px-3 py-1.5 flex justify-between items-center h-12 shadow-inner" id="input-container">
+                                <span class="text-slate-400 text-sm font-bold">答：</span>
+                                <span class="text-2xl font-extrabold tracking-widest text-amber-500 font-mono flex-grow text-center" id="game-input"></span>
+                                <span class="w-1 h-5 bg-amber-500 animate-pulse ml-0.5" id="cursor"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- テンキーパッド (スクロール不要、極めて応答性の高いサイズ設計) -->
+                    <div class="grid grid-cols-3 gap-1.5 w-full max-w-[320px] mx-auto flex-none pb-1">
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="7">7</button>
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="8">8</button>
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="9">9</button>
+                        
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="4">4</button>
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="5">5</button>
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="6">6</button>
+                        
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="1">1</button>
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="2">2</button>
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="3">3</button>
+                        
+                        <button class="key-btn bg-red-955/50 hover:bg-red-900/50 text-red-450 text-xl font-bold py-3 rounded-lg border border-red-900/30 active:bg-red-800 transition flex items-center justify-center" data-key="Backspace" title="一文字削除">
+                            <i class="fa-solid fa-delete-left"></i>
+                        </button>
+                        <button class="key-btn bg-slate-800 hover:bg-slate-700 text-2xl font-bold py-3 rounded-lg border border-slate-700/80 active:bg-amber-600 transition flex items-center justify-center text-slate-100" data-key="0">0</button>
+                        <button class="key-btn bg-amber-600 hover:bg-amber-500 text-slate-950 text-lg font-black py-3 rounded-lg border border-amber-500 active:bg-amber-400 transition flex items-center justify-center" data-key="Enter" id="btn-submit" title="回答送信">
+                            確定
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ==================== FEEDBACK SCREEN (判定・解説画面) ==================== -->
+                <div id="screen-feedback" class="hidden flex-col justify-between h-full space-y-2">
+                    <!-- ミニステータスバー（中断導線） -->
+                    <div class="flex justify-end items-center text-xs flex-none">
+                        <button class="btn-abort text-slate-400 hover:text-rose-400 transition flex items-center gap-1 font-bold" title="トップメニューに戻る">
+                            <i class="fa-solid fa-house"></i> トップに戻る
+                        </button>
+                    </div>
+
+                    <!-- 判定演出 -->
+                    <div class="text-center p-2 rounded-xl border flex items-center justify-center gap-3 flex-none" id="feedback-alert-box">
+                        <div class="text-2xl font-extrabold flex items-center justify-center gap-1.5" id="feedback-status-text">
+                            <i id="feedback-status-icon" class="text-xl"></i> <span>正解！</span>
+                        </div>
+                        <span class="text-xs sm:text-sm text-slate-300 font-bold" id="feedback-time-taken">4.2秒</span>
+                    </div>
+
+                    <!-- 回答比較エリア（問題項目を削除し、あなたの答と正解を大きなフォントで縦並び化） -->
+                    <div class="bg-slate-950/60 rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 text-sm flex-none">
+                        <!-- あなたの答 -->
+                        <div class="px-4 py-2 flex justify-between items-center">
+                            <span class="text-xs sm:text-sm font-extrabold text-slate-400 tracking-wider">あなたの答</span>
+                            <div class="flex items-center gap-2">
+                                <span class="font-extrabold text-rose-450 font-mono text-base sm:text-lg tracking-wider" id="feedback-user-answer">15,920,205</span>
+                                <span id="feedback-status-badge-wrong" class="text-xs bg-rose-500/15 text-rose-400 px-2 py-0.5 rounded-md font-extrabold">誤</span>
+                            </div>
+                        </div>
+                        <!-- 正解 -->
+                        <div class="px-4 py-2 flex justify-between items-center bg-emerald-950/5">
+                            <span class="text-xs sm:text-sm font-extrabold text-slate-400 tracking-wider">正解</span>
+                            <div class="flex items-center gap-2">
+                                <span class="font-extrabold text-emerald-400 font-mono text-base sm:text-lg tracking-wider" id="feedback-correct-answer">15,920,205</span>
+                                <span class="text-xs bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-md font-extrabold">合</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 珠算式・頭脳そろばん解説エンジン (幅自動圧縮機構を実装) -->
+                    <div class="bg-slate-950/80 rounded-xl border border-amber-900/30 p-2.5 flex-grow flex flex-col justify-between overflow-hidden min-h-[220px]">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-1 flex-none">
+                            <span class="text-xs sm:text-sm font-bold text-amber-500 flex items-center gap-1.5">
+                                <i class="fa-solid fa-graduation-cap"></i> 珠算式・暗算プロセス
+                            </span>
+                            <span class="text-xs bg-slate-850 text-slate-300 px-2 py-0.5 rounded font-bold font-mono" id="explain-step-counter">
+                                Step 1 / 4
+                            </span>
+                        </div>
+
+                        <!-- 計算式の現在フォーカス -->
+                        <div class="text-center py-1 bg-slate-900/40 rounded border border-slate-800/80 my-1 flex-none overflow-hidden">
+                            <div class="tracking-wider font-mono h-6 flex items-center justify-center" id="explain-formula-focus" style="font-size: 1rem;"></div>
+                        </div>
+
+                        <!-- 2Dそろばん盤面シミュレーション (桁数に関わらず完全に1画面に収まるよう自動調整) -->
+                        <div class="bg-amber-950/5 border border-amber-900/15 rounded-lg p-1.5 flex flex-col items-center justify-center flex-grow max-h-[120px]">
+                            <div class="relative bg-amber-950/40 rounded border-2 border-amber-900/80 px-2 py-1 flex justify-center gap-0.5 w-full max-w-[340px] h-[85px] shadow-md" id="soroban-board">
+                                <!-- 梁（はり） -->
+                                <div class="absolute left-0 right-0 h-1.5 bg-amber-900/95 top-[22px] z-10 border-y border-amber-950"></div>
+                            </div>
+                        </div>
+
+                        <!-- 解説文：高さを固定(h-14) -->
+                        <div class="bg-slate-900/60 p-2 rounded border border-slate-850 text-xs leading-relaxed text-slate-200 h-14 overflow-y-auto custom-scrollbar flex-none mt-1 shadow-inner" id="explain-description">
+                            解説テキスト
+                        </div>
+
+                        <!-- 解説操作ナビゲーター -->
+                        <div class="grid grid-cols-2 gap-2 pt-1.5 flex-none">
+                            <button id="btn-explain-prev" class="bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded text-xs sm:text-sm font-bold border border-slate-700 transition flex items-center justify-center gap-1 shadow">
+                                <i class="fa-solid fa-chevron-left"></i> 戻る
+                            </button>
+                            <button id="btn-explain-next" class="bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded text-xs sm:text-sm font-bold border border-slate-700 transition flex items-center justify-center gap-1 shadow">
+                                進む <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 次へ進むボタン (テキストサイズを大きく) -->
+                    <button id="btn-feedback-next" class="w-full bg-slate-200 hover:bg-white text-slate-950 font-black py-2.5 rounded-xl transition text-center text-base tracking-wider flex-none mt-1 block shadow-lg">
+                        次の問題へ進む <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+
+                <!-- ==================== RESULT SCREEN (修練完了・成績画面) ==================== -->
+                <div id="screen-result" class="hidden flex-col justify-between h-full space-y-4 py-2 overflow-y-auto scrollbar-hide">
+                    <div class="text-center space-y-1">
+                        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 text-3xl mb-1 shadow-inner">
+                            <i class="fa-solid fa-award"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-amber-400 serif-title">修練完了</h2>
+                        <p class="text-sm text-slate-400">今回の成果を報告します</p>
+                    </div>
+
+                    <!-- スタッツ -->
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="bg-slate-950/60 p-3 rounded-lg border border-slate-800 text-center shadow-inner">
+                            <div class="text-slate-400 text-xs font-bold">正解数</div>
+                            <div class="text-2xl font-black text-amber-500 mt-1" id="result-correct-count">0 / 10</div>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-lg border border-slate-800 text-center shadow-inner">
+                            <div class="text-slate-400 text-xs font-bold">正解率</div>
+                            <div class="text-2xl font-black text-amber-500 mt-1" id="result-accuracy">0%</div>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-lg border border-slate-800 text-center shadow-inner">
+                            <div class="text-slate-400 text-xs font-bold">総修練時間</div>
+                            <div class="text-2xl font-black text-slate-200 mt-1" id="result-total-time">0秒</div>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-lg border border-slate-800 text-center shadow-inner">
+                            <div class="text-slate-400 text-xs font-bold">平均速度</div>
+                            <div class="text-2xl font-black text-slate-200 mt-1" id="result-avg-speed">0.0秒</div>
+                        </div>
+                    </div>
+
+                    <!-- 再挑戦ボタン等 -->
+                    <div class="space-y-2 pt-1 flex-none">
+                        <button id="btn-restart" class="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold py-2.5 rounded-xl transition text-center text-base tracking-wider block shadow-lg">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> 同じ条件で再挑戦
+                        </button>
+                        <button id="btn-go-setup" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl transition text-center text-base tracking-wider block border border-slate-700 shadow">
+                            条件を設定し直す
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-slate-950 py-1.5 text-center border-t border-slate-900 flex-none">
+        <p class="text-[10px] text-slate-600 tracking-wider">
+            &copy; 2026 珠算式・暗算修練場 極
+        </p>
+    </footer>
+
+    <!-- JSロジック -->
+    <script>
+        // --- サウンド生成部 (Web Audio API) ---
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        const initAudio = () => {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        };
+
+        const playSorobanSound = (pitchMultiplier = 1.0) => {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'triangle';
+            const pitch = (1000 + Math.random() * 400) * pitchMultiplier;
+            osc.frequency.setValueAtTime(pitch, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.04);
+            
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.04);
+        };
+
+        const playCorrectSound = () => {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, now); // C5
+            osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+            
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+            osc.start();
+            osc.stop(now + 0.3);
+        };
+
+        const playWrongSound = () => {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(140, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+            
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+            osc.start();
+            osc.stop(now + 0.2);
+        };
+
+        // --- 汎用ヘルパー関数：3桁区切りのカンマフォーマット ---
+        const toCommaString = (val) => {
+            if (val === null || val === undefined || val === "") return "";
+            const num = Number(val);
+            if (isNaN(num)) return val.toString();
+            return num.toLocaleString('ja-JP');
+        };
+
+        // --- ゲームステート管理 ---
+        const state = {
+            multiplicandDigits: 2,
+            multiplierDigits: 2,
+            maxQuestions: 10,
+            timerLimit: 0, // 初期デフォルト値：「制限なし」
+            
+            questions: [],
+            currentQuestionIndex: 0,
+            score: 0,
+            startTime: null,
+            questionStartTime: null,
+            timeLimitTimer: null,
+            remainingTime: 0,
+            highScore: 0,
+            
+            currentExplainStep: 0,
+            explainSteps: [],
+            rawInput: "" 
+        };
+
+        const digitLabels = ["一", "十", "百", "千", "万", "十万", "百万", "千万", "億", "十億"];
+
+        if (localStorage.getItem('soroban_high_score')) {
+            state.highScore = parseInt(localStorage.getItem('soroban_high_score'), 10);
+            document.getElementById('high-score-display').innerText = state.highScore;
+        }
+
+        const screens = {
+            setup: document.getElementById('screen-setup'),
+            game: document.getElementById('screen-game'),
+            feedback: document.getElementById('screen-feedback'),
+            result: document.getElementById('screen-result')
+        };
+
+        const showScreen = (screenName) => {
+            Object.keys(screens).forEach(key => {
+                if (key === screenName) {
+                    screens[key].classList.remove('hidden');
+                    screens[key].classList.add('flex');
+                } else {
+                    screens[key].classList.add('hidden');
+                    screens[key].classList.remove('flex');
+                }
+            });
+        };
+
+        // 音声トグル
+        const soundToggleBtn = document.getElementById('sound-toggle');
+        const soundIcon = document.getElementById('sound-icon');
+        soundToggleBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-amber-500 text-sm";
+                initAudio();
+                playSorobanSound(1.2);
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-slate-500 text-sm";
+            }
+        });
+
+        // 中断処理
+        const abortGame = () => {
+            if (state.timeLimitTimer) {
+                clearInterval(state.timeLimitTimer);
+            }
+            playSorobanSound(0.7);
+            showScreen('setup');
+        };
+
+        document.querySelectorAll('.btn-abort').forEach(btn => {
+            btn.addEventListener('click', abortGame);
+        });
+
+        // セットアップの桁数選択
+        const setupMultiplicandGroup = document.getElementById('setup-multiplicand');
+        const setupMultiplierGroup = document.getElementById('setup-multiplier');
+
+        const initDigitSelector = (groupElement, isMultiplicand) => {
+            const buttons = groupElement.querySelectorAll('.digit-btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    playSorobanSound(1.0);
+                    buttons.forEach(b => {
+                        b.className = "digit-btn bg-slate-800 hover:bg-slate-755 text-slate-200 py-2 rounded-lg text-sm font-extrabold border border-slate-700 transition";
+                    });
+                    btn.className = "digit-btn bg-amber-600 text-white py-2 rounded-lg text-sm font-extrabold border border-amber-500 transition ring-2 ring-amber-500/30";
+                    const val = parseInt(btn.getAttribute('data-val'), 10);
+                    if (isMultiplicand) {
+                        state.multiplicandDigits = val;
+                    } else {
+                        state.multiplierDigits = val;
+                    }
+                });
+            });
+        };
+
+        initDigitSelector(setupMultiplicandGroup, true);
+        initDigitSelector(setupMultiplierGroup, false);
+
+        const generateNumber = (digits) => {
+            if (digits === 1) {
+                return Math.floor(Math.random() * 8) + 2;
+            }
+            const min = Math.pow(10, digits - 1);
+            const max = Math.pow(10, digits) - 1;
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        };
+
+        const generateQuestions = () => {
+            state.questions = [];
+            const count = state.maxQuestions === 999 ? 100 : state.maxQuestions;
+            for (let i = 0; i < count; i++) {
+                const x = generateNumber(state.multiplicandDigits);
+                const y = generateNumber(state.multiplierDigits);
+                state.questions.push({
+                    x: x,
+                    y: y,
+                    answer: x * y,
+                    userAnswer: "",
+                    timeTaken: 0
+                });
+            }
+        };
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            initAudio();
+            playSorobanSound(1.5);
+            
+            state.maxQuestions = parseInt(document.getElementById('setup-questions-count').value, 10);
+            state.timerLimit = parseInt(document.getElementById('setup-timer-limit').value, 10);
+            
+            generateQuestions();
+            state.currentQuestionIndex = 0;
+            state.score = 0;
+            state.startTime = Date.now();
+            
+            startQuestion();
+        });
+
+        // --- フォントサイズ動的最適化エンジン ---
+        const adjustGameProblemFontSize = () => {
+            const el = document.getElementById('game-problem');
+            const maxDigits = Math.max(state.multiplicandDigits, state.multiplierDigits);
+            const screenWidth = Math.min(400, window.innerWidth - 32); 
+            
+            if (maxDigits >= 3) {
+                const referenceLength = 17; // 「12,345 × 67,890」の17文字基準
+                let targetSize = Math.floor(screenWidth / (referenceLength * 0.54));
+                targetSize = Math.max(20, Math.min(36, targetSize)); 
+                el.style.fontSize = `${targetSize}px`;
+            } else {
+                let targetSize = Math.floor(screenWidth / (7 * 0.52)); 
+                targetSize = Math.max(42, Math.min(52, targetSize));
+                el.style.fontSize = `${targetSize}px`;
+            }
+        };
+
+        const adjustExplainFormulaFontSize = (htmlText) => {
+            const el = document.getElementById('explain-formula-focus');
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlText;
+            const pureLength = tempDiv.innerText.length;
+
+            const screenWidth = Math.min(340, window.innerWidth - 48);
+            let targetSize = Math.floor(screenWidth / (pureLength * 0.6));
+            targetSize = Math.max(13, Math.min(20, targetSize));
+
+            el.style.fontSize = `${targetSize}px`;
+        };
+
+        const startQuestion = () => {
+            if (state.currentQuestionIndex >= state.questions.length) {
+                showResult();
+                return;
+            }
+            const q = state.questions[state.currentQuestionIndex];
+            state.rawInput = ""; 
+            
+            document.getElementById('game-progress').innerText = `${state.currentQuestionIndex + 1} / ${state.maxQuestions === 999 ? "サバイバル" : state.maxQuestions}`;
+            
+            const problemText = `${toCommaString(q.x)} × ${toCommaString(q.y)}`;
+            document.getElementById('game-problem').innerText = problemText;
+            
+            adjustGameProblemFontSize(); 
+            
+            document.getElementById('game-input').innerText = "";
+            
+            const livesWrapper = document.getElementById('game-lives-wrapper');
+            if (state.maxQuestions === 999) {
+                livesWrapper.classList.remove('hidden');
+                document.getElementById('game-lives').innerText = 3 - (state.currentQuestionIndex - state.score);
+            } else {
+                livesWrapper.classList.add('hidden');
+            }
+
+            state.questionStartTime = Date.now();
+            showScreen('game');
+            
+            document.getElementById('input-container').classList.remove('border-red-500', 'border-emerald-500');
+            document.getElementById('input-container').classList.add('border-slate-700');
+
+            if (state.timeLimitTimer) clearInterval(state.timeLimitTimer);
+            if (state.timerLimit > 0) {
+                state.remainingTime = state.timerLimit;
+                updateTimerDisplay();
+                state.timeLimitTimer = setInterval(() => {
+                    state.remainingTime -= 0.1;
+                    if (state.remainingTime <= 0) {
+                        state.remainingTime = 0;
+                        updateTimerDisplay();
+                        clearInterval(state.timeLimitTimer);
+                        submitAnswer(true);
+                    } else {
+                        updateTimerDisplay();
+                    }
+                }, 100);
+            } else {
+                document.getElementById('game-timer').innerText = "制限なし";
+            }
+        };
+
+        const updateTimerDisplay = () => {
+            const timerEl = document.getElementById('game-timer');
+            timerEl.innerText = `${state.remainingTime.toFixed(1)}s`;
+            if (state.remainingTime <= 5) {
+                timerEl.className = "font-mono text-rose-500 font-bold animate-pulse text-sm sm:text-base";
+            } else {
+                timerEl.className = "font-mono text-amber-500 font-bold text-sm sm:text-base";
+            }
+        };
+
+        const handleInput = (char) => {
+            const inputEl = document.getElementById('game-input');
+            
+            if (char === 'Backspace') {
+                if (state.rawInput.length > 0) {
+                    state.rawInput = state.rawInput.slice(0, -1);
+                    playSorobanSound(0.8);
+                }
+            } else if (/^[0-9]$/.test(char)) {
+                if (state.rawInput.length < 12) {
+                    state.rawInput += char;
+                    playSorobanSound(1.1);
+                }
+            }
+            
+            inputEl.innerText = toCommaString(state.rawInput);
+        };
+
+        const keyButtons = document.querySelectorAll('.key-btn');
+        keyButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const key = btn.getAttribute('data-key');
+                if (key === 'Enter') {
+                    submitAnswer();
+                } else {
+                    handleInput(key);
+                }
+                
+                btn.classList.add('key-active');
+                setTimeout(() => btn.classList.remove('key-active'), 80);
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!screens.game.classList.contains('hidden')) {
+                if (e.key === 'Enter') {
+                    submitAnswer();
+                } else if (e.key === 'Backspace' || e.key === 'Delete') {
+                    handleInput('Backspace');
+                } else if (/^[0-9]$/.test(e.key)) {
+                    handleInput(e.key);
+                }
+                
+                const targetBtn = document.querySelector(`.key-btn[data-key="${e.key}"]`);
+                if (targetBtn) {
+                    targetBtn.classList.add('key-active');
+                    setTimeout(() => targetBtn.classList.remove('key-active'), 80);
+                }
+            } else if (!screens.feedback.classList.contains('hidden')) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    document.getElementById('btn-feedback-next').click();
+                } else if (e.key === 'ArrowRight') {
+                    document.getElementById('btn-explain-next').click();
+                } else if (e.key === 'ArrowLeft') {
+                    document.getElementById('btn-explain-prev').click();
+                }
+            }
+        });
+
+        const submitAnswer = (isTimeup = false) => {
+            if (state.timeLimitTimer) clearInterval(state.timeLimitTimer);
+            
+            const q = state.questions[state.currentQuestionIndex];
+            if (!q) return;
+
+            q.userAnswer = state.rawInput === "" ? null : parseInt(state.rawInput, 10);
+            q.timeTaken = (Date.now() - state.questionStartTime) / 1000;
+
+            const isCorrect = q.userAnswer === q.answer;
+            if (isCorrect) {
+                state.score++;
+                playCorrectSound();
+            } else {
+                playWrongSound();
+            }
+
+            buildExplainSteps(q.x, q.y, q.userAnswer, q.answer);
+
+            const alertBox = document.getElementById('feedback-alert-box');
+            const statusIcon = document.getElementById('feedback-status-icon');
+            const statusText = document.getElementById('feedback-status-text').querySelector('span');
+            const timeTakenText = document.getElementById('feedback-time-taken');
+            
+            document.getElementById('feedback-user-answer').innerText = q.userAnswer === null ? "時間切れ" : toCommaString(q.userAnswer);
+            document.getElementById('feedback-correct-answer').innerText = toCommaString(q.answer);
+
+            const wrongBadge = document.getElementById('feedback-status-badge-wrong');
+
+            if (isCorrect) {
+                alertBox.className = "text-center p-2 rounded-xl border border-emerald-900/30 bg-emerald-950/20 flex items-center justify-center gap-2 flex-none shadow-sm";
+                statusIcon.className = "fa-solid fa-circle-check text-emerald-500 text-xl";
+                statusText.innerText = "正解！";
+                statusText.className = "text-emerald-500 text-lg font-bold";
+                timeTakenText.innerText = `回答時間: ${q.timeTaken.toFixed(1)}秒`;
+                wrongBadge.classList.add('hidden');
+            } else {
+                alertBox.className = "text-center p-2 rounded-xl border border-rose-900/30 bg-rose-950/20 flex items-center justify-center gap-2 flex-none shadow-sm";
+                statusIcon.className = "fa-solid fa-circle-xmark text-rose-500 text-xl";
+                statusText.innerText = isTimeup ? "時間切れ！" : "間違いです";
+                statusText.className = "text-rose-500 text-lg font-bold";
+                timeTakenText.innerText = isTimeup ? "制限時間を超過しました" : `回答時間: ${q.timeTaken.toFixed(1)}秒`;
+                wrongBadge.classList.remove('hidden');
+            }
+
+            state.currentExplainStep = 0;
+            renderExplainStep();
+
+            showScreen('feedback');
+        };
+
+        // 次の問題へ進む
+        document.getElementById('btn-feedback-next').addEventListener('click', () => {
+            playSorobanSound(1.2);
+            state.currentQuestionIndex++;
+            
+            const isSurvival = state.maxQuestions === 999;
+            const mistakes = state.currentQuestionIndex - state.score;
+            const isDead = isSurvival && mistakes >= 3;
+
+            if (state.currentQuestionIndex >= state.questions.length || isDead) {
+                showResult();
+            } else {
+                startQuestion();
+            }
+        });
+
+        // --- カンマを崩さずに1文字ずつ色付けする高精度パーサー ---
+        const buildHighlightedWithComma = (numStr, activeIdx, colorClass) => {
+            let html = "";
+            const len = numStr.length;
+            for (let s = 0; s < len; s++) {
+                if (s === activeIdx) {
+                    html += `<span class="${colorClass} font-extrabold bg-amber-500/10 px-1 py-0.5 rounded shadow-sm">${numStr[s]}</span>`;
+                } else {
+                    html += `<span class="text-slate-200 font-semibold">${numStr[s]}</span>`;
+                }
+                
+                const digitsFromRight = len - 1 - s;
+                if (digitsFromRight > 0 && digitsFromRight % 3 === 0) {
+                    html += `<span class="text-slate-600 font-bold mx-0.5">,</span>`;
+                }
+            }
+            return html;
+        };
+
+        // --- そろばん式かけ算の解説ステップ生成ロジック ---
+        const buildExplainSteps = (x, y, userAnswer, correctAnswer) => {
+            const steps = [];
+            const strX = x.toString();
+            const strY = y.toString();
+            const lenX = strX.length;
+            const lenY = strY.length;
+            const totalDigits = lenX + lenY;
+            
+            let currentBoard = Array(totalDigits).fill(0);
+
+            steps.push({
+                type: 'positioning',
+                formulaFocus: `${toCommaString(x)} × ${toCommaString(y)}`,
+                desc: `【定位】 被乗数${lenX}桁、乗数${lenY}桁の合計${totalDigits}桁。頭脳そろばんの最高位「${digitLabels[totalDigits - 1]}の位」から加算を始めます。`,
+                board: [...currentBoard],
+                activeDigits: []
+            });
+
+            for (let i = 0; i < lenX; i++) {
+                const valX = parseInt(strX[i], 10);
+                
+                for (let j = 0; j < lenY; j++) {
+                    const valY = parseInt(strY[j], 10);
+                    const prod = valX * valY;
+                    
+                    const d1 = Math.floor(prod / 10);
+                    const d2 = prod % 10;
+                    
+                    const pos1 = i + j;       
+                    const pos2 = i + j + 1;   
+                    
+                    const boardBefore = [...currentBoard];
+                    
+                    currentBoard[pos1] += d1;
+                    currentBoard[pos2] += d2;
+                    
+                    let boardAfterWithCarry = [...currentBoard];
+                    for (let k = boardAfterWithCarry.length - 1; k > 0; k--) {
+                        if (boardAfterWithCarry[k] >= 10) {
+                            const carry = Math.floor(boardAfterWithCarry[k] / 10);
+                            boardAfterWithCarry[k] %= 10;
+                            boardAfterWithCarry[k - 1] += carry;
+                        }
+                    }
+                    currentBoard = [...boardAfterWithCarry];
+
+                    // 特殊パーサー
+                    const partXHTML = buildHighlightedWithComma(strX, i, "text-amber-500");
+                    const partYHTML = buildHighlightedWithComma(strY, j, "text-rose-500");
+                    const formulaHTML = `${partXHTML} <span class="text-slate-500 px-1">×</span> ${partYHTML}`;
+
+                    const pos1Name = digitLabels[totalDigits - 1 - pos1];
+                    const pos2Name = digitLabels[totalDigits - 1 - pos2];
+
+                    let desc = `部分九九: <strong>${strX[i]} × ${strY[j]} = ${prod.toString().padStart(2, '0')}</strong><br>${pos1Name}の位に「${d1}」、${pos2Name}の位に「${d2}」を加算します。`;
+                    
+                    const hadCarry = boardAfterWithCarry.some((val, idx) => {
+                        const simpleAdd = boardBefore[idx] + (idx === pos1 ? d1 : 0) + (idx === pos2 ? d2 : 0);
+                        return simpleAdd !== val;
+                    });
+                    
+                    if (hadCarry) {
+                        desc += ` (繰り上がり発生)`;
+                    }
+
+                    steps.push({
+                        type: 'calculation',
+                        formulaFocus: formulaHTML,
+                        valX: valX,
+                        valY: valY,
+                        prod: prod,
+                        pos1: pos1,
+                        pos2: pos2,
+                        boardBefore: boardBefore,
+                        board: [...currentBoard],
+                        desc: desc,
+                        activeDigits: [pos1, pos2]
+                    });
+                }
+            }
+
+            steps.push({
+                type: 'summary',
+                formulaFocus: `${toCommaString(x)} × ${toCommaString(y)} ＝ ${toCommaString(correctAnswer)}`,
+                desc: `【修練終了】 頭の中の珠イメージと一致しているか、プロセスを振り返ってみましょう。`,
+                board: [...currentBoard],
+                activeDigits: []
+            });
+
+            state.explainSteps = steps;
+        };
+
+        // --- そろばんレンダリング (V2.1 高信頼性対応) ---
+        const renderSorobanAxis = (val, isHighlighted, digitLabel, totalAxes) => {
+            const fiveBeadActive = val >= 5;
+            const singleBeadCount = val % 5;
+            
+            // 合計軸数(totalAxes)に基づいてサイズ設計を変更 (w-4.5を排除し標準のTailwindクラスのみ使用)
+            let widthClass = "w-8";
+            let beadWidthClass = "w-6";
+            let labelTextClass = "text-[11px]";
+            let valTextClass = "text-[11px]";
+
+            if (totalAxes >= 9) {
+                widthClass = "w-5";
+                beadWidthClass = "w-4"; // Tailwind標準
+                labelTextClass = "text-[8px]";
+                valTextClass = "text-[8px]";
+            } else if (totalAxes >= 7) {
+                widthClass = "w-6";
+                beadWidthClass = "w-5"; // Tailwind標準
+                labelTextClass = "text-[9px]";
+                valTextClass = "text-[9px]";
+            }
+            
+            const axisContainer = document.createElement('div');
+            // 古い軸だけをリセット特定するためのクラス 「soroban-axis」 を明示的に付与
+            axisContainer.className = `soroban-axis relative h-20 rounded flex flex-col items-center py-1 transition duration-150 ${widthClass} ${isHighlighted ? 'bg-amber-500/10 ring-1 ring-amber-500/30' : 'bg-slate-950/40'}`;
+            
+            const labelEl = document.createElement('div');
+            labelEl.className = `absolute -bottom-4 font-bold ${labelTextClass} ${isHighlighted ? 'text-amber-400' : 'text-slate-450'}`;
+            labelEl.innerText = digitLabel;
+            axisContainer.appendChild(labelEl);
+
+            const valLabel = document.createElement('div');
+            valLabel.className = `absolute -top-4 font-mono font-bold ${valTextClass} ${isHighlighted ? 'text-amber-400' : 'text-slate-400'}`;
+            valLabel.innerText = val;
+            axisContainer.appendChild(valLabel);
+
+            const rod = document.createElement('div');
+            rod.className = `absolute w-0.5 h-[90%] bg-slate-700/80 left-1/2 -translate-x-1/2 z-0`;
+            axisContainer.appendChild(rod);
+
+            // 五珠
+            const fiveBead = document.createElement('div');
+            fiveBead.className = `soroban-bead bg-amber-600 rounded border border-amber-800 shadow-sm z-20 absolute transition-all duration-200 ${beadWidthClass} h-2.5`;
+            fiveBead.style.top = fiveBeadActive ? '12px' : '2px';
+            axisContainer.appendChild(fiveBead);
+
+            // 一珠 (4つ)
+            const rodHeight = 80; 
+            const barBottom = 22; 
+            
+            for (let k = 0; k < 4; k++) {
+                const singleBead = document.createElement('div');
+                singleBead.className = `soroban-bead bg-amber-600 rounded border border-amber-800 shadow-sm z-20 absolute transition-all duration-200 ${beadWidthClass} h-2.5`;
+                
+                let targetY = 0;
+                if (k < singleBeadCount) {
+                    targetY = barBottom + 2 + (k * 7.5);
+                } else {
+                    targetY = rodHeight - 11 - ((3 - k) * 7.5);
+                }
+                
+                singleBead.style.top = `${targetY}px`;
+                axisContainer.appendChild(singleBead);
+            }
+
+            return axisContainer;
+        };
+
+        const drawSorobanBoard = (boardValues, activeDigits) => {
+            const boardContainer = document.getElementById('soroban-board');
+            
+            // クラス名 「soroban-axis」 を持つ古い軸を例外なく全てクリーンアップ
+            const existingAxes = boardContainer.querySelectorAll('.soroban-axis');
+            existingAxes.forEach(ax => ax.remove());
+
+            const total = boardValues.length;
+            boardValues.forEach((val, idx) => {
+                const isHighlighted = activeDigits.includes(idx);
+                const label = digitLabels[total - 1 - idx] || "";
+                const axisNode = renderSorobanAxis(val, isHighlighted, label, total);
+                boardContainer.appendChild(axisNode);
+            });
+        };
+
+        const renderExplainStep = () => {
+            const step = state.explainSteps[state.currentExplainStep];
+            if (!step) return;
+
+            document.getElementById('btn-explain-prev').disabled = state.currentExplainStep === 0;
+            document.getElementById('btn-explain-next').disabled = state.currentExplainStep === state.explainSteps.length - 1;
+            
+            document.getElementById('btn-explain-prev').className = state.currentExplainStep === 0 
+                ? "bg-slate-800/40 text-slate-500 py-1.5 rounded text-xs sm:text-sm border border-slate-800 cursor-not-allowed flex items-center justify-center gap-0.5 shadow-sm"
+                : "bg-slate-800 hover:bg-slate-700 text-slate-200 py-1.5 rounded text-xs sm:text-sm font-bold border border-slate-700 transition flex items-center justify-center gap-0.5 shadow-sm";
+            
+            document.getElementById('btn-explain-next').className = state.currentExplainStep === state.explainSteps.length - 1
+                ? "bg-slate-800/40 text-slate-500 py-1.5 rounded text-xs sm:text-sm border border-slate-800 cursor-not-allowed flex items-center justify-center gap-0.5 shadow-sm"
+                : "bg-slate-800 hover:bg-slate-700 text-slate-200 py-1.5 rounded text-xs sm:text-sm font-bold border border-slate-700 transition flex items-center justify-center gap-0.5 shadow-sm";
+
+            document.getElementById('explain-step-counter').innerText = `Step ${state.currentExplainStep + 1} / ${state.explainSteps.length}`;
+            
+            document.getElementById('explain-formula-focus').innerHTML = step.formulaFocus;
+            adjustExplainFormulaFontSize(step.formulaFocus);
+            
+            const descEl = document.getElementById('explain-description');
+            descEl.innerHTML = step.desc;
+            descEl.scrollTop = 0;
+
+            drawSorobanBoard(step.board, step.activeDigits);
+        };
+
+        document.getElementById('btn-explain-prev').addEventListener('click', () => {
+            if (state.currentExplainStep > 0) {
+                state.currentExplainStep--;
+                playSorobanSound(0.9);
+                renderExplainStep();
+            }
+        });
+
+        document.getElementById('btn-explain-next').addEventListener('click', () => {
+            if (state.currentExplainStep < state.explainSteps.length - 1) {
+                state.currentExplainStep++;
+                playSorobanSound(1.1);
+                renderExplainStep();
+            }
+        });
+
+        const showResult = () => {
+            const totalQuestions = state.questions.length;
+            const accuracy = Math.round((state.score / totalQuestions) * 100);
+            const totalTimeSec = (Date.now() - state.startTime) / 1000;
+            
+            const answeredQs = state.questions.slice(0, state.currentQuestionIndex);
+            const avgSpeed = answeredQs.length > 0 
+                ? (answeredQs.reduce((acc, q) => acc + q.timeTaken, 0) / answeredQs.length).toFixed(1)
+                : "0.0";
+
+            document.getElementById('result-correct-count').innerText = `${state.score} / ${state.maxQuestions === 999 ? state.currentQuestionIndex : totalQuestions}`;
+            document.getElementById('result-accuracy').innerText = `${accuracy}%`;
+            
+            const mins = Math.floor(totalTimeSec / 60);
+            const secs = Math.floor(totalTimeSec % 60);
+            document.getElementById('result-total-time').innerText = mins > 0 ? `${mins}分 ${secs}秒` : `${secs}秒`;
+            document.getElementById('result-avg-speed').innerText = `${avgSpeed}秒 / 問`;
+
+            if (state.score > state.highScore) {
+                state.highScore = state.score;
+                localStorage.setItem('soroban_high_score', state.highScore);
+                document.getElementById('high-score-display').innerText = state.highScore;
+            }
+
+            showScreen('result');
+        };
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            playSorobanSound(1.5);
+            generateQuestions();
+            state.currentQuestionIndex = 0;
+            state.score = 0;
+            state.startTime = Date.now();
+            startQuestion();
+        });
+
+        document.getElementById('btn-go-setup').addEventListener('click', () => {
+            playSorobanSound(1.0);
+            showScreen('setup');
+        });
+
+        showScreen('setup');
+    </script>
+</body>
+</html>
